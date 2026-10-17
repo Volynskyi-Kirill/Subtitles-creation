@@ -1043,9 +1043,6 @@ dependencies = [
 [package.metadata]
 requires-dist = [{ name = "openai-whisper" }]
 
-[package.metadata.requires-dev]
-dev = []
-
 [[package]]
 name = "triton"
 version = "3.7.0"
