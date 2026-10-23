@@ -112,8 +112,27 @@ class TestTranscribe(unittest.TestCase):
                 audio_path=self.audio_path,
                 output_format="txt",
                 model_name=None,
-                language="en",
+                language=None,
             )
+
+    def test_run_transcription_language(self):
+        from transcribe import run_transcription
+        mock_model = unittest.mock.MagicMock()
+        mock_model.transcribe.return_value = {
+            "text": "Пример текста",
+            "language": "ru",
+            "segments": [],
+        }
+
+        with patch("whisper.load_model", return_value=mock_model):
+            # Test default: no language passed, Whisper auto-detects
+            res = run_transcription(self.audio_path)
+            self.assertEqual(res["language"], "ru")
+            mock_model.transcribe.assert_called_with(self.audio_path)
+
+            # Test explicit language
+            run_transcription(self.audio_path, language="uk")
+            mock_model.transcribe.assert_called_with(self.audio_path, language="uk")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ def format_timestamp(seconds: float) -> str:
 def run_transcription(
     audio_path: str,
     model_name: str | None = None,
-    language: str = "en",
+    language: str | None = None,
 ) -> dict:
     if not os.path.exists(audio_path):
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
@@ -26,7 +26,15 @@ def run_transcription(
     model = whisper.load_model(model_name)
 
     print(f"Transcribing: {audio_path}")
-    return model.transcribe(audio_path, language=language)
+    kwargs = {}
+    if language:
+        kwargs["language"] = language
+
+    result = model.transcribe(audio_path, **kwargs)
+    detected_lang = result.get("language")
+    if detected_lang:
+        print(f"Detected language: {detected_lang}")
+    return result
 
 
 def transcribe_to_srt(
@@ -34,7 +42,7 @@ def transcribe_to_srt(
     result: dict | None = None,
     output_path: str | None = None,
     model_name: str | None = None,
-    language: str = "en",
+    language: str | None = None,
 ) -> str:
     if result is None:
         result = run_transcription(audio_path, model_name=model_name, language=language)
@@ -59,7 +67,7 @@ def transcribe_to_txt(
     result: dict | None = None,
     output_path: str | None = None,
     model_name: str | None = None,
-    language: str = "en",
+    language: str | None = None,
 ) -> str:
     if result is None:
         result = run_transcription(audio_path, model_name=model_name, language=language)
@@ -82,7 +90,7 @@ def transcribe_to_txt(
 def transcribe_to_both(
     audio_path: str,
     model_name: str | None = None,
-    language: str = "en",
+    language: str | None = None,
 ) -> tuple[str, str]:
     result = run_transcription(audio_path, model_name=model_name, language=language)
     srt_path = transcribe_to_srt(audio_path, result=result)

@@ -64,7 +64,7 @@ audio.wav  →  audio.srt
 - `--both`: Generate both `.srt` and `.txt`.
 - `-f`, `--format {srt,txt,both}`: Specify transcription format (default: `srt`).
 - `-m`, `--model`: Specify Whisper model (e.g., `tiny`, `base`, `small`, `medium`, `large-v3`).
-- `-l`, `--language`: Specify audio language (default: `en`).
+- `-l`, `--language`: Specify audio language (e.g. `ru`, `uk`, `en`). If omitted, Whisper automatically detects the spoken language.
 
 ## Model
 

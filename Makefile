@@ -1,7 +1,9 @@
 # Path to the audio file (override via command line: make txt FILE=path/to/audio.wav)
 FILE ?= media/audio.ogg
 MODEL ?= medium
-LANGUAGE ?= en
+LANGUAGE ?=
+
+LANG_FLAG = $(if $(LANGUAGE),--language "$(LANGUAGE)",)
 
 .PHONY: help txt srt both test install
 
@@ -16,7 +18,7 @@ help:
 	@echo "Optional parameters:"
 	@echo "  FILE      Path to audio/video file (current: $(FILE))"
 	@echo "  MODEL     Whisper model: tiny, base, small, medium, large-v3 (current: $(MODEL))"
-	@echo "  LANGUAGE  Audio language code (current: $(LANGUAGE))"
+	@echo "  LANGUAGE  Audio language code: ru, uk, en, etc. (default: auto-detect)"
 
 install:
 	uv sync
@@ -25,10 +27,10 @@ test:
 	uv run python -m unittest test_transcribe.py
 
 txt:
-	uv run main.py "$(FILE)" --txt --model "$(MODEL)" --language "$(LANGUAGE)"
+	uv run main.py "$(FILE)" --txt --model "$(MODEL)" $(LANG_FLAG)
 
 srt:
-	uv run main.py "$(FILE)" --srt --model "$(MODEL)" --language "$(LANGUAGE)"
+	uv run main.py "$(FILE)" --srt --model "$(MODEL)" $(LANG_FLAG)
 
 both:
-	uv run main.py "$(FILE)" --both --model "$(MODEL)" --language "$(LANGUAGE)"
+	uv run main.py "$(FILE)" --both --model "$(MODEL)" $(LANG_FLAG)

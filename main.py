@@ -11,7 +11,7 @@ def run_transcribe(
     audio_path: str,
     output_format: str = "srt",
     model_name: str | None = None,
-    language: str = "en",
+    language: str | None = None,
 ) -> str | tuple[str, str]:
     """Dispatch transcription using switch-case (match-case) based on the format flag."""
     match output_format.lower():
@@ -69,8 +69,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "-l",
         "--language",
-        default="en",
-        help="Language spoken in the audio (default: en)",
+        default=None,
+        help="Audio language (e.g. ru, uk, en). If omitted, automatically detects language.",
     )
 
     return parser.parse_args(argv)
