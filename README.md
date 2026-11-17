@@ -87,6 +87,16 @@ keeps Whisper's sparse alignment metadata on CPU while moving the encoder and
 decoder to the GPU. CUDA uses FP16. If no supported GPU is available, automatic
 selection uses CPU. To explicitly use CPU, run `make txt DEVICE=cpu`.
 
+Transcription shows a progress bar with percentage, elapsed time, processing
+speed, and estimated time remaining. It updates after each audio window (up to
+30 seconds of audio), so the first estimate appears after the first window
+finishes. Audio preparation and language detection happen before the bar starts.
+The estimate may change as different sections take different amounts of work.
+
+On macOS, the app prevents automatic idle sleep while loading the model and
+transcribing; the display can still turn off. Keep the lid open: closing it or
+manually putting the Mac to sleep can still suspend processing.
+
 ## Model
 
 The default model is `medium` — a good balance of speed and accuracy for accented speech.

@@ -7,6 +7,7 @@ from main import main, parse_args, run_transcribe
 from transcribe import (
     format_timestamp,
     load_model,
+    prevent_idle_sleep,
     run_transcription,
     select_device,
     transcribe_to_both,
@@ -133,11 +134,11 @@ class TestTranscribe(unittest.TestCase):
             # Test default: no language passed, Whisper auto-detects
             res = run_transcription(self.audio_path)
             self.assertEqual(res["language"], "ru")
-            mock_model.transcribe.assert_called_with(self.audio_path, fp16=False)
+            mock_model.transcribe.assert_called_with(self.audio_path, fp16=False, verbose=False)
 
             # Test explicit language
             run_transcription(self.audio_path, language="uk")
-            mock_model.transcribe.assert_called_with(self.audio_path, fp16=False, language="uk")
+            mock_model.transcribe.assert_called_with(self.audio_path, fp16=False, verbose=False, language="uk")
 
     def test_device_selection(self):
         with patch("torch.cuda.is_available", return_value=False), \
@@ -176,7 +177,33 @@ class TestTranscribe(unittest.TestCase):
                  patch("transcribe.load_model") as loader:
                 loader.return_value.transcribe.return_value = self.mock_result
                 run_transcription(self.audio_path, device=device)
-                loader.return_value.transcribe.assert_called_once_with(self.audio_path, fp16=fp16)
+                loader.return_value.transcribe.assert_called_once_with(self.audio_path, fp16=fp16, verbose=False)
+
+    def test_sleep_prevention_cleanup(self):
+        for fail in (False, True):
+            with self.subTest(fail=fail), \
+                 patch("transcribe.sys.platform", "darwin"), \
+                 patch("transcribe.subprocess.Popen") as popen:
+                try:
+                    with prevent_idle_sleep():
+                        popen.assert_called_once_with(
+                            ["caffeinate", "-i", "-w", str(os.getpid())],
+                            stdout=-3, stderr=-3,
+                        )
+                        popen.return_value.terminate.assert_not_called()
+                        if fail:
+                            raise RuntimeError("transcription failed")
+                except RuntimeError:
+                    pass
+                popen.return_value.terminate.assert_called_once()
+                popen.return_value.wait.assert_called_once()
+
+    def test_sleep_prevention_other_platform(self):
+        with patch("transcribe.sys.platform", "linux"), \
+             patch("transcribe.subprocess.Popen") as popen:
+            with prevent_idle_sleep():
+                pass
+            popen.assert_not_called()
 
 
 if __name__ == "__main__":

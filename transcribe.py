@@ -1,7 +1,32 @@
 import os
+import subprocess
 import sys
+from contextlib import contextmanager
+import warnings
+
 import torch
 import whisper
+
+
+@contextmanager
+def prevent_idle_sleep():
+    """Keep macOS awake while working; allow the display to turn off."""
+    process = None
+    if sys.platform == "darwin":
+        try:
+            process = subprocess.Popen(
+                ["caffeinate", "-i", "-w", str(os.getpid())],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError as error:
+            warnings.warn(f"Could not prevent idle sleep: {error}")
+    try:
+        yield
+    finally:
+        if process is not None:
+            process.terminate()
+            process.wait()
 
 
 def select_device(device: str = "auto") -> str:
@@ -50,15 +75,22 @@ def run_transcription(
         model_name = os.environ.get("WHISPER_MODEL", "medium")
 
     device = select_device(device)
-    print(f"Loading model: {model_name} (device: {device})")
-    model = load_model(model_name, device)
-
-    print(f"Transcribing: {audio_path}")
-    kwargs = {"fp16": device == "cuda"}
+    # Whisper enables its progress bar (elapsed time, speed, ETA) only when
+    # verbose is explicitly False; its default None hides all progress.
+    kwargs = {"fp16": device == "cuda", "verbose": False}
     if language:
         kwargs["language"] = language
 
-    result = model.transcribe(audio_path, **kwargs)
+    with prevent_idle_sleep():
+        print(f"Loading model: {model_name} (device: {device})", flush=True)
+        model = load_model(model_name, device)
+        print(f"Transcribing: {audio_path}", flush=True)
+        print(
+            "Preparing audio and detecting language. Progress and estimated time "
+            "remaining update after each audio window (up to 30 seconds of audio).",
+            flush=True,
+        )
+        result = model.transcribe(audio_path, **kwargs)
     detected_lang = result.get("language")
     if detected_lang:
         print(f"Detected language: {detected_lang}")
