@@ -1,7 +1,9 @@
 # Path to the audio file (override via command line: make txt FILE=path/to/audio.wav)
-FILE ?= media/audio.ogg
-MODEL ?= medium
+FILE ?= media/Tech interview.m4a
+# MODEL ?= medium
+MODEL ?=large-v3-turbo
 LANGUAGE ?=
+DEVICE ?= auto
 
 LANG_FLAG = $(if $(LANGUAGE),--language "$(LANGUAGE)",)
 
@@ -17,8 +19,9 @@ help:
 	@echo ""
 	@echo "Optional parameters:"
 	@echo "  FILE      Path to audio/video file (current: $(FILE))"
-	@echo "  MODEL     Whisper model: tiny, base, small, medium, large-v3 (current: $(MODEL))"
+	@echo "  MODEL     Whisper model: tiny, base, small, medium, large-v3, large-v3-turbo (alias: turbo) (current: $(MODEL))"
 	@echo "  LANGUAGE  Audio language code: ru, uk, en, etc. (default: auto-detect)"
+	@echo "  DEVICE    auto, mps (Apple GPU), cuda, or cpu (current: $(DEVICE))"
 
 install:
 	uv sync
@@ -27,10 +30,10 @@ test:
 	uv run python -m unittest test_transcribe.py
 
 txt:
-	uv run main.py "$(FILE)" --txt --model "$(MODEL)" $(LANG_FLAG)
+	uv run main.py "$(FILE)" --txt --model "$(MODEL)" --device "$(DEVICE)" $(LANG_FLAG)
 
 srt:
-	uv run main.py "$(FILE)" --srt --model "$(MODEL)" $(LANG_FLAG)
+	uv run main.py "$(FILE)" --srt --model "$(MODEL)" --device "$(DEVICE)" $(LANG_FLAG)
 
 both:
-	uv run main.py "$(FILE)" --both --model "$(MODEL)" $(LANG_FLAG)
+	uv run main.py "$(FILE)" --both --model "$(MODEL)" --device "$(DEVICE)" $(LANG_FLAG)

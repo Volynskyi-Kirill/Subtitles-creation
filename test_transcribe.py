@@ -6,6 +6,9 @@ from unittest.mock import patch
 from main import main, parse_args, run_transcribe
 from transcribe import (
     format_timestamp,
+    load_model,
+    run_transcription,
+    select_device,
     transcribe_to_both,
     transcribe_to_srt,
     transcribe_to_txt,
@@ -113,6 +116,7 @@ class TestTranscribe(unittest.TestCase):
                 output_format="txt",
                 model_name=None,
                 language=None,
+                device="auto",
             )
 
     def test_run_transcription_language(self):
@@ -124,15 +128,55 @@ class TestTranscribe(unittest.TestCase):
             "segments": [],
         }
 
-        with patch("whisper.load_model", return_value=mock_model):
+        with patch("whisper.load_model", return_value=mock_model), \
+             patch("transcribe.select_device", return_value="cpu"):
             # Test default: no language passed, Whisper auto-detects
             res = run_transcription(self.audio_path)
             self.assertEqual(res["language"], "ru")
-            mock_model.transcribe.assert_called_with(self.audio_path)
+            mock_model.transcribe.assert_called_with(self.audio_path, fp16=False)
 
             # Test explicit language
             run_transcription(self.audio_path, language="uk")
-            mock_model.transcribe.assert_called_with(self.audio_path, language="uk")
+            mock_model.transcribe.assert_called_with(self.audio_path, fp16=False, language="uk")
+
+    def test_device_selection(self):
+        with patch("torch.cuda.is_available", return_value=False), \
+             patch("torch.backends.mps.is_available", return_value=True):
+            self.assertEqual(select_device(), "mps")
+            self.assertEqual(select_device("cpu"), "cpu")
+        with patch("torch.cuda.is_available", return_value=True):
+            self.assertEqual(select_device(), "cuda")
+        with patch("torch.cuda.is_available", return_value=False), \
+             patch("torch.backends.mps.is_available", return_value=False):
+            self.assertEqual(select_device(), "cpu")
+            with self.assertRaisesRegex(RuntimeError, "MPS"):
+                select_device("mps")
+            with self.assertRaisesRegex(RuntimeError, "CUDA"):
+                select_device("cuda")
+
+    def test_mps_load_keeps_sparse_buffer_on_cpu(self):
+        model = unittest.mock.MagicMock()
+        with patch("whisper.load_model", return_value=model) as loader:
+            self.assertIs(load_model("large-v3-turbo", "mps"), model)
+            loader.assert_called_once_with("large-v3-turbo", device="cpu")
+        model.encoder.to.assert_called_once_with("mps")
+        model.decoder.to.assert_called_once_with("mps")
+        model.to.assert_not_called()
+        model.alignment_heads.to.assert_not_called()
+
+    def test_device_forwarded_from_cli(self):
+        with patch("main.transcribe_to_txt", return_value="test.txt") as transcriber:
+            self.assertEqual(main([self.audio_path, "--txt", "--device", "mps"]), 0)
+            self.assertEqual(transcriber.call_args.kwargs["device"], "mps")
+
+    def test_gpu_precision(self):
+        for device, fp16 in [("mps", False), ("cuda", True), ("cpu", False)]:
+            with self.subTest(device=device), \
+                 patch("transcribe.select_device", return_value=device), \
+                 patch("transcribe.load_model") as loader:
+                loader.return_value.transcribe.return_value = self.mock_result
+                run_transcription(self.audio_path, device=device)
+                loader.return_value.transcribe.assert_called_once_with(self.audio_path, fp16=fp16)
 
 
 if __name__ == "__main__":

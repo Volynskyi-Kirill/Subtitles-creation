@@ -12,15 +12,16 @@ def run_transcribe(
     output_format: str = "srt",
     model_name: str | None = None,
     language: str | None = None,
+    device: str = "auto",
 ) -> str | tuple[str, str]:
     """Dispatch transcription using switch-case (match-case) based on the format flag."""
     match output_format.lower():
         case "srt":
-            return transcribe_to_srt(audio_path, model_name=model_name, language=language)
+            return transcribe_to_srt(audio_path, model_name=model_name, language=language, device=device)
         case "txt" | "text":
-            return transcribe_to_txt(audio_path, model_name=model_name, language=language)
+            return transcribe_to_txt(audio_path, model_name=model_name, language=language, device=device)
         case "both" | "all":
-            return transcribe_to_both(audio_path, model_name=model_name, language=language)
+            return transcribe_to_both(audio_path, model_name=model_name, language=language, device=device)
         case _:
             raise ValueError(
                 f"Unsupported format '{output_format}'. Supported formats: 'srt', 'txt', 'both'"
@@ -64,7 +65,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "-m",
         "--model",
         default=None,
-        help="Whisper model to use (overrides WHISPER_MODEL env var, default: medium)",
+        help=(
+            "Whisper model to use (e.g. medium, large-v3, large-v3-turbo or turbo; "
+            "overrides WHISPER_MODEL env var, default: medium)"
+        ),
     )
     parser.add_argument(
         "-l",
@@ -73,6 +77,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Audio language (e.g. ru, uk, en). If omitted, automatically detects language.",
     )
 
+    parser.add_argument(
+        "--device",
+        choices=["auto", "cpu", "cuda", "mps"],
+        default="auto",
+        help="Compute device (default: auto; selects CUDA, Apple GPU/MPS, then CPU)",
+    )
     return parser.parse_args(argv)
 
 
@@ -95,6 +105,7 @@ def main(argv: list[str] | None = None) -> int:
             output_format=selected_format,
             model_name=args.model,
             language=args.language,
+            device=args.device,
         )
         return 0
     except Exception as e:

@@ -27,6 +27,9 @@ make both FILE=/path/to/audio.wav
 
 # Optional model and language overrides
 make txt FILE=/path/to/audio.wav MODEL=large-v3 LANGUAGE=ru
+
+# Faster large-v3 transcription
+make txt FILE=/path/to/audio.wav MODEL=large-v3-turbo
 ```
 
 ### Via CLI
@@ -63,8 +66,26 @@ audio.wav  →  audio.srt
 - `--srt`: Shortcut to transcribe to subtitles (`.srt`).
 - `--both`: Generate both `.srt` and `.txt`.
 - `-f`, `--format {srt,txt,both}`: Specify transcription format (default: `srt`).
-- `-m`, `--model`: Specify Whisper model (e.g., `tiny`, `base`, `small`, `medium`, `large-v3`).
+- `-m`, `--model`: Specify Whisper model (e.g., `tiny`, `base`, `small`, `medium`, `large-v3`, `large-v3-turbo`). The alias `turbo` also selects `large-v3-turbo`.
 - `-l`, `--language`: Specify audio language (e.g. `ru`, `uk`, `en`). If omitted, Whisper automatically detects the spoken language.
+- `--device {auto,cpu,cuda,mps}`: Select the compute device (default: `auto`).
+
+### Apple Silicon GPU
+
+On M1 and other Apple Silicon Macs, the app automatically uses the GPU through
+PyTorch MPS when available. Startup prints the selected device, such as
+`Loading model: large-v3-turbo (device: mps)`.
+
+```bash
+make txt DEVICE=mps
+# or
+uv run main.py "media/Tech interview.m4a" --txt --model large-v3-turbo --device mps
+```
+
+MPS uses FP32 for compatibility; GPU execution does not require FP16. The app
+keeps Whisper's sparse alignment metadata on CPU while moving the encoder and
+decoder to the GPU. CUDA uses FP16. If no supported GPU is available, automatic
+selection uses CPU. To explicitly use CPU, run `make txt DEVICE=cpu`.
 
 ## Model
 
@@ -75,7 +96,16 @@ Override via flag or environment variable:
 uv run main.py /path/to/audio.wav --model large-v3
 # or
 WHISPER_MODEL=large-v3 uv run main.py /path/to/audio.wav
+
+# Large-v3-turbo (also available as --model turbo)
+uv run main.py /path/to/audio.wav --model large-v3-turbo
+# or
+WHISPER_MODEL=large-v3-turbo uv run main.py /path/to/audio.wav
 ```
+
+`large-v3-turbo` is an optimized version of `large-v3` with faster transcription
+and a small reduction in accuracy. It is supported by the locked Whisper dependency;
+the first use downloads the model automatically.
 
 | Model | Speed | Quality |
 |-------|-------|---------|
@@ -84,6 +114,7 @@ WHISPER_MODEL=large-v3 uv run main.py /path/to/audio.wav
 | `small` | moderate | good |
 | `medium` | moderate | **better** (default) |
 | `large-v3` | slow | best |
+| `large-v3-turbo` / `turbo` | faster than `large-v3` | near `large-v3` |
 
 ## Supported formats
 
